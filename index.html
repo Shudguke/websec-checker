@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Websec Checker – Website Security Scanner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0d0f18;
+      --card: #14172a;
+      --border: #1e2240;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 16px 80px;
+      transition: background 0.6s ease;
+      overflow-x: hidden;
+    }
+
+    /* ── floating blobs ── */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+
+    .blob1 {
+      width: 420px;
+      height: 420px;
+      background: #6366f1;
+      top: -120px;
+      left: -80px;
+      animation-delay: 0s;
+    }
+
+    .blob2 {
+      width: 320px;
+      height: 320px;
+      background: #8b5cf6;
+      bottom: 60px;
+      right: -60px;
+      animation-delay: -5s;
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate(0, 0) scale(1);
+      }
+
+      to {
+        transform: translate(30px, 20px) scale(1.05);
+      }
+    }
+
+    /* ── header ── */
+    header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .logo-icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 0 28px var(--accent-glow);
+    }
+
+    .logo-text {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: #818cf8;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── scan card ── */
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 640px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #url-input {
+      flex: 1;
+      background: #0d0f18;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 1rem;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    #url-input::placeholder {
+      color: #3a3f6b;
+    }
+
+    #url-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    #scan-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 26px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.18s, box-shadow 0.18s;
+      white-space: nowrap;
+    }
+
+    #scan-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.12);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    #scan-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px var(--accent-glow);
+    }
+
+    #scan-btn:hover::after {
+      opacity: 1;
+    }
+
+    #scan-btn:active {
+      transform: scale(0.96);
+    }
+
+    #scan-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ripple */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(0);
+      animation: ripple-anim 0.55s linear;
+      pointer-events: none;
+    }
+
+    @keyframes ripple-anim {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+
+    /* ── spinner ── */
+    .spinner-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 28px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .spinner-wrap.visible {
+      opacity: 1;
+    }
+
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #1e2240;
+      border-top-color: #818cf8;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .scanning-text {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* ── result panel ── */
+    #result {
+      margin-top: 32px;
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      pointer-events: none;
+    }
+
+    #result.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .risk-banner {
+      border-radius: 16px;
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 22px;
+      border: 1.5px solid transparent;
+      transition: background 0.5s, border-color 0.5s;
+    }
+
+    .risk-icon {
+      font-size: 2.2rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .risk-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .risk-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+
+    .risk-desc {
+      font-size: 0.88rem;
+      margin-top: 4px;
+      opacity: 0.85;
+    }
+
+    .risk-low {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .risk-medium {
+      background: rgba(234, 179, 8, 0.12);
+      border-color: rgba(234, 179, 8, 0.3);
+    }
+
+    .risk-high {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .color-low {
+      color: #4ade80;
+    }
+
+    .color-medium {
+      color: #facc15;
+    }
+
+    .color-high {
+      color: #f87171;
+    }
+
+    /* Pulse animation for HIGH */
+    @keyframes pulse-red {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+      }
+
+      50% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+      }
+    }
+
+    .risk-high {
+      animation: pulse-red 2s ease-in-out infinite;
+    }
+
+    /* ── meta badges ── */
+    .meta-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #1e2240;
+      border: 1px solid #2a2f55;
+    }
+
+    .badge-ok {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.3);
+      color: #4ade80;
+    }
+
+    .badge-fail {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    /* ── security checklist ── */
+    h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .checks {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d0f18;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 16px;
+      transition: border-color 0.3s;
+    }
+
+    .check-item:hover {
+      border-color: #2a2f55;
+    }
+
+    .check-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .check-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+
+    .check-pass {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+    }
+
+    .check-fail {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    /* ── error ── */
+    .error-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 14px;
+      padding: 18px 20px;
+      color: #f87171;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ── body flash for HIGH ── */
+    body.flash-high {
+      background: #18050a;
+    }
+
+    body.flash-low {
+      background: #040f0a;
+    }
+
+    body.flash-med {
+      background: #14100a;
+    }
+
+    /* ── footer ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      margin-top: 40px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-text">Websec <span>Checker</span></div>
+    </div>
+    <p>Instantly check if a website has safe basic security analysis by analyzing its security headers and HTTPS
+      configuration.</p>
+  </header>
+
+  <div class="card">
+    <label for="url-input">🔍 Enter Website URL</label>
+    <div class="input-row">
+      <input type="text" id="url-input" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+      <button id="scan-btn" onclick="runScan()">Scan Now</button>
+    </div>
+
+    <!-- Spinner -->
+    <div class="spinner-wrap" id="spinner">
+      <div class="spinner"></div>
+      <span class="scanning-text">Scanning security headers…</span>
+    </div>
+
+    <!-- Result -->
+    <div id="result"></div>
+  </div>
+
+  <footer>WebShield checks only HTTP headers, not full vulnerabilities</footer>
+
+  <script>
+    const btn = document.getElementById('scan-btn');
+    const input = document.getElementById('url-input');
+    const spinner = document.getElementById('spinner');
+    const result = document.getElementById('result');
+
+    // ripple effect on button
+    btn.addEventListener('click', function (e) {
+      const r = document.createElement('span');
+      r.classList.add('ripple');
+      const rect = btn.getBoundingClientRect();
+      r.style.left = (e.clientX - rect.left - 16) + 'px';
+      r.style.top = (e.clientY - rect.top - 16) + 'px';
+      r.style.width = r.style.height = '32px';
+      btn.appendChild(r);
+      setTimeout(() => r.remove(), 600);
+    });
+
+    // Enter key support
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
+
+    async function runScan() {
+      if (btn.disabled) return;
+      let url = input.value.trim();
+      if (!url) { input.focus(); inputShake(); return; }
+
+      const hasScheme = /^https?:\/\//i.test(url);
+
+      // UI → loading
+      btn.disabled = true;
+      spinner.classList.add('visible');
+      result.classList.remove('visible');
+      document.body.className = '';
+
+      await delay(300);
+
+      try {
+        if (hasScheme) {
+          // User already provided a scheme — use it directly
+          const res = await fetch(`/scan?url=${encodeURIComponent(url)}`);
+          const data = await res.json();
+          renderResult(data, url);
+        } else {
+          // No scheme — try https:// first, fall back to http:// on error
+          const httpsUrl = 'https://' + url;
+          const res1 = await fetch(`/scan?url=${encodeURIComponent(httpsUrl)}`);
+          const data1 = await res1.json();
+
+          if (data1.error) {
+            // https failed → try http://
+            const httpUrl = 'http://' + url;
+            const res2 = await fetch(`/scan?url=${encodeURIComponent(httpUrl)}`);
+            const data2 = await res2.json();
+            renderResult(data2, httpUrl);
+          } else {
+            renderResult(data1, httpsUrl);
+          }
+        }
+      } catch (err) {
+        renderError('Could not reach the scanner backend. Make sure the FastAPI server is running on port 8000.');
+      } finally {
+        btn.disabled = false;
+        spinner.classList.remove('visible');
+      }
+    }
+
+    function renderResult(data, url) {
+      if (data.error) {
+        renderError(`Failed to scan <strong>${url}</strong>. The site may be unreachable or blocking requests.`);
+        return;
+      }
+
+      const risk = (data.risk || 'UNKNOWN').toUpperCase();
+      const riskConfig = {
+        LOW: { cls: 'risk-low', color: 'color-low', icon: '✅', title: 'Lower Risk', desc: 'Lower risk — this website has basic protections present.' },
+        MEDIUM: { cls: 'risk-medium', color: 'color-medium', icon: '⚠️', title: 'Medium Risk', desc: 'Some security policies are present, but a few key protections are missing. Browse with care.' },
+        HIGH: { cls: 'risk-high', color: 'color-high', icon: '🚨', title: 'Higher Risk!', desc: 'Higher risk — this website is missing key protections. Avoid entering sensitive information!' },
+      };
+      const cfg = riskConfig[risk] || { cls: 'risk-medium', color: 'color-medium', icon: '❓', title: risk, desc: '' };
+
+      // Body tint
+      const tints = { LOW: 'flash-low', MEDIUM: 'flash-med', HIGH: 'flash-high' };
+      document.body.className = tints[risk] || '';
+
+      const sec = data.security || {};
+      const checks = [
+        { name: 'Content Security Policy (CSP)', key: 'CSP' },
+        { name: 'HTTP Strict Transport (HSTS)', key: 'HSTS' },
+        { name: 'X-Frame-Options', key: 'X-Frame-Options' },
+        { name: 'X-Content-Type-Options', key: 'X-Content-Type-Options' },
+        { name: 'Referrer Policy', key: 'Referrer-Policy' },
+      ];
+
+      const missing = checks.filter(c => !sec[c.key]).map(c => c.name);
+
+      result.innerHTML = `
+        <div class="risk-banner ${cfg.cls}">
+          <div class="risk-icon">${cfg.icon}</div>
+          <div>
+            <div class="risk-label ${cfg.color}">Risk Level</div>
+            <div class="risk-title ${cfg.color}">${cfg.title}</div>
+            <div class="risk-desc">${cfg.desc}</div>
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <span class="badge ${data.https ? 'badge-ok' : 'badge-fail'}">
+            ${data.https ? '🔒 HTTPS Enabled' : '🔓 No HTTPS'}
+          </span>
+          <span class="badge">
+            📡 Status ${data.status_code}
+          </span>
+        </div>
+
+        <h3>Security Header Checks</h3>
+        <div class="checks">
+          ${checks.map(c => `
+            <div class="check-item">
+              <span class="check-name">${c.name}</span>
+              <span class="check-badge ${sec[c.key] ? 'check-pass' : 'check-fail'}">
+                ${sec[c.key] ? '✔ Present' : '✘ Missing'}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+
+        ${missing.length > 0 ? `
+          <div style="
+            margin-top: 16px;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 0.85rem;
+            color: #f87171;
+            line-height: 1.6;
+          ">
+            <strong style="display:block; margin-bottom:4px;">⚠️ Missing headers (${missing.length}):</strong>
+            ${missing.join(' · ')}
+          </div>
+        ` : `
+          <div style="
+            margin-top: 16px;
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 0.85rem;
+            color: #4ade80;
+          ">
+            ✅ All security headers are present!
+          </div>
+        `}
+      `;
+
+      result.classList.add('visible');
+    }
+
+    function renderError(msg) {
+      document.body.className = '';
+      result.innerHTML = `<div class="error-box">⚠️ <span>${msg}</span></div>`;
+      result.classList.add('visible');
+    }
+
+    function inputShake() {
+      input.style.animation = 'none';
+      input.style.borderColor = '#f87171';
+      setTimeout(() => { input.style.borderColor = ''; }, 800);
+    }
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+  </script>
+</body>
+
+</html>
